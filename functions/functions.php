@@ -8,6 +8,7 @@ function clean($str)
 function redirect($location)
 {
     header("location: {$location}");
+    exit();
 }
 
 function set_message($message)
@@ -36,6 +37,7 @@ function token_generator()
 
 function email_exists($email)
 {
+    $email = filter_var($email,FILTER_SANITIZE_EMAIL);
     $query = "SELECT id FROM users WHERE email = '$email'";
     if (row_count(query($query))) {
         return true;
@@ -46,6 +48,7 @@ function email_exists($email)
 
 function user_exists($user)
 {
+    $user = filter_var($user,   FILTER_SANITIZE_STRING);
     $query = "SELECT id FROM users WHERE username = '$user'";
     if (row_count(query($query))) {
         return true;
@@ -95,6 +98,12 @@ function validate_user_registration()
                       <span aria-hidden="true">&times;</span></button></div>';
             }
         } else {
+            $first_name = filter_var($first_name,   FILTER_SANITIZE_STRING);
+            $last_name  = filter_var($last_name,    FILTER_SANITIZE_STRING);
+            $username   = filter_var($username,     FILTER_SANITIZE_STRING);
+            $email      = filter_var($email,        FILTER_SANITIZE_EMAIL);
+            $password   = filter_var($password,     FILTER_SANITIZE_STRING);
+            $password   = password_hash($password,PASSWORD_DEFAULT );
             createuser($first_name, $last_name, $username, $email, $password);
         }
     }
@@ -108,7 +117,7 @@ function createuser($first_name, $last_name, $username, $email, $password)
     $username = escape($username);
     $email = escape($email);
     $password = escape($password);
-    $password = md5($password);
+    $password   = password_hash($password,PASSWORD_DEFAULT );
     $token = md5($username . microtime());
     $sql = "INSERT INTO users(first_name,last_name,username,email,password,token,activition) ";
     $sql .= "VALUES('$first_name','$last_name','$username','$email','$password','$token',0)";
@@ -132,6 +141,8 @@ function activate_user()
     if ($_SERVER['REQUEST_METHOD'] == "GET") {
         $email = clean($_GET['email']);
         $code = clean($_GET['code']);
+        $email      = filter_var($email,    FILTER_SANITIZE_EMAIL);
+        $code   = filter_var($code, FILTER_SANITIZE_STRING);
         $query = "SELECT id FROM users WHERE email='$email' AND token='$code'";
         $queryEmail = "SELECT id FROM users WHERE email='$email'";
         $result = query($query);
@@ -163,6 +174,7 @@ function validate_user_login()
         $email = clean($_POST['email']);
         $password = clean($_POST['password']);
         $remember = clean(isset($_POST['remember']));
+        $password   = password_hash($password,PASSWORD_DEFAULT );
         if (empty($email)) {
             $errors[] = "Email field cannot be empty";
         }
@@ -189,7 +201,11 @@ function validate_user_login()
 
 function user_login($email, $password, $remember)
 {
-    $password = md5($password);
+    $password   = filter_var($password, FILTER_SANITIZE_STRING);
+    $password   = password_hash($password,PASSWORD_DEFAULT );
+    $email      = filter_var($email,    FILTER_SANITIZE_EMAIL);
+    $remember   = filter_var($remember, FILTER_SANITIZE_STRING);
+
     $query = "SELECT id FROM users WHERE email='$email' AND password='$password'";
     $result = query($query);
     if (row_count($result) == 1) {
@@ -228,6 +244,7 @@ function recover()
         }
         if (isset($_POST['recover-submit'])) {
             $email = $_POST['email'];
+            $email = filter_var($email, FILTER_SANITIZE_EMAIL);
             $query = "SELECT id FROM users WHERE email='$email'";
             $result = query($query);
             if (row_count($result) == 1) {
@@ -258,6 +275,8 @@ function check_code()
     {
         $email = $_GET['email'];
         $token = $_GET['token'];
+        $email  = filter_var($email,   FILTER_SANITIZE_EMAIL);
+        $token  = filter_var($token,    FILTER_SANITIZE_STRING);
         $query = "SELECT id FROM users WHERE email='$email' AND token='$token'";
         $result = query($query);
         if (row_count($result) == 1) {
@@ -269,8 +288,13 @@ function check_code()
             $email = $_GET['email'];
             $password = $_POST['password'];
             $confirm_password = $_POST['confirm_password'];
+
+            $email              = filter_var($email,               FILTER_SANITIZE_EMAIL);
+            $password           = filter_var($password,            FILTER_SANITIZE_STRING);
+            $confirm_password   = filter_var($confirm_password,    FILTER_SANITIZE_STRING);
+
             if($password == $confirm_password){
-                $password = md5($password);
+                $password   = password_hash($password,PASSWORD_DEFAULT );
                 $query = "UPDATE users set password='$password', token='0' WHERE email='$email'";
                 query($query);
                 set_message('<p class="alert alert-success">The password has been updated. Can Be Login Now</p>');
